@@ -1,0 +1,23 @@
+<?php
+/*function ajax_browscap_install() {
+  $initial_settings = array (
+    'ajax_browscap_add_js' => 1,
+    'browser' => 1,
+    'version' => 1,
+  );
+  variable_set('ajax_browscap_settings', $initial_settings);
+  $msg = 'Successfully saved Ajax Browscap settings.';
+  ajax_browscap_msg($msg);
+}
+
+function ajax_browscap_uninstall() {
+  variable_del('ajax_browscap_settings');
+  $msg = 'Successfully disabled Ajax Browscap.';
+  ajax_browscap_msg($msg);
+}
+
+function ajax_browscap_msg($msg) {
+  drupal_set_message($msg);
+  watchdog('ajax_browscap', $msg);
+}
+*/

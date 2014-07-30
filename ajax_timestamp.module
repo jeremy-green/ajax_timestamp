@@ -1,0 +1,168 @@
+<?php
+/**
+ * @file
+ * Module for Ajax Browscap.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function ajax_timestamp_menu() {
+  $items['ajax-timestamp'] = array(
+    'title' => 'Ajax Timestamp',
+    'page callback' => 'ajax_timestamp_json',
+    'access arguments' => array('access content'),
+    'type' => MENU_LOCAL_TASK,
+  );
+  $items['admin/config/system/ajax-timestamp'] = array(
+    'title' => 'Ajax Timestamp',
+    'description' => 'Manage the Ajax Timestamp settings.',
+    'access arguments' => array('administer ajax timestamp'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ajax_timestamp_settings'),
+  );
+  return $items;
+}
+
+function ajax_timestamp_json() {
+  $settings = variable_get('ajax_timestamp_settings', array());
+  $output = $settings;
+
+  foreach ($settings['date'] as $key => $value) {
+    if ($value) {
+      $output['date'][$key] = date($key);
+    } else {
+      unset($output['date'][$key]);
+    }
+  }
+
+  foreach ($settings['custom'] as $key => $value) {
+    if (!empty($value)) {
+      $output['custom'][$value] = date($value);
+    }
+    unset($output['custom'][$key]);
+  }
+
+  drupal_json_output(array_filter($output));
+  drupal_exit();
+}
+
+/**
+ * Implements hook_preprocess_html()
+ */
+function ajax_timestamp_preprocess_html(&$vars) {
+  $settings = variable_get('ajax_timestamp_settings', array());
+  if ($settings['add_js']) {
+    drupal_add_js(drupal_get_path('module', 'ajax_timestamp') . '/js/ajax_timestamp.js');
+  }
+}
+
+function ajax_timestamp_settings($form, &$form_state) {
+  $settings = variable_get('ajax_timestamp_settings', array());
+  $form = array();
+  $form['#tree'] = TRUE;
+
+  $form['ajax_timestamp']['add_js'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Include Javascript'),
+    '#description' => t('Include the default javascript file that will add the classes to the &lt;html&gt; tag.'),
+    '#default_value' => !empty($settings['add_js']) ? 1 : 0
+  );
+
+  $data_array = array(
+    'Y' => array(
+      'name' => 'Year',
+      'description' => 'Default Year <em>Y</em>'
+    ),
+    'm' => array(
+      'name' => 'Month',
+      'description' => 'Default Month <em>m</em>'
+    ),
+    'i' => array(
+      'name' => 'Minutes',
+      'description' => 'Default Minutes <em>i</em>'
+    ),
+  );
+
+  foreach ($data_array as $date => $value) {
+    $form['ajax_timestamp']['date'][$date] = array(
+      '#type' => 'checkbox',
+      '#title' => t($value['name']),
+      '#description' => t($value['description']),
+      '#default_value' => !empty($settings['date'][$date]) ? 1 : 0
+    );
+  }
+  $form['ajax_timestamp']['offset'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Offset'),
+    '#description' => t('Check if the time returned is different than the time on the users computer.'),
+    '#default_value' => !empty($settings['offset']) ? 1 : 0
+  );
+
+  $form['ajax_timestamp']['custom'] = array(
+    '#type' => 'fieldset',
+    '#tree' => TRUE,
+    '#title' => 'Custom Time Format',
+    '#description' => 'See ' . l('PHP\'s Date', 'http://php.net/manual/en/function.date.php') . ' for more details.',
+    '#prefix' => '<div id="custom-format">',
+    '#suffix' => '</div>',
+  );
+
+  $form_state['storage']['ajax_timestamp']['custom'] = isset($form_state['storage']['ajax_timestamp']['custom']) ? $form_state['storage']['ajax_timestamp']['custom'] : (!empty($settings['custom']) ? count($settings['custom']) : 1);
+  if (isset($form_state['storage']['ajax_timestamp']['custom'])) {
+
+    for ($i = 0; $i < $form_state['storage']['ajax_timestamp']['custom']; $i++) {
+      $form['ajax_timestamp']['custom'][$i] = array(
+        '#type' => 'textfield',
+        '#default_value' => isset($settings['custom'][$i]) ? $settings['custom'][$i] : '',
+      );
+    }
+
+  }
+
+  $form_state['storage']['ajax_timestamp']['custom']++;
+
+  $form['add_one'] = array(
+    '#type' => 'button',
+    '#value' => 'Add Custom Time Format',
+    '#submit' => array(),
+    '#limit_validation_errors' => array(),
+    '#ajax' => array(
+        'callback' => 'ajax_timestamp_settings_ajax_submit',
+        'wrapper' => 'custom-format',
+        'method' => 'replace',
+        'effect' => 'fade',
+        'event' => 'click',
+        'prevent' => 'submit click mousedown',
+    ),
+  );
+
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Save Configuration'
+  );
+
+  /*$form['debug'] = array(
+    '#markup' => '<pre>' .  print_r($settings, TRUE) . '</pre>'
+  );*/
+
+  return $form;
+}
+
+function ajax_timestamp_settings_ajax_submit($form, &$form_state) {
+  return $form['ajax_timestamp']['custom'];
+}
+
+
+function ajax_timestamp_settings_submit(&$form, &$form_state) {
+  $values = $form_state['values']['ajax_timestamp'];
+  foreach ($values['custom'] as $key => $value) {
+    if (empty($value)) {
+      array_splice($values['custom'], $key, 1);
+    }
+  }
+  $values['custom'] = array_filter($values['custom']);
+  variable_set('ajax_timestamp_settings', $values);
+}
+
